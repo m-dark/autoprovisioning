@@ -9,6 +9,7 @@ use DBI;
 use Time::Local;
 use encoding 'utf-8';
 #yum install perl-XML-SAX
+#yum install perl-XML-Parser
 use XML::Simple;
 use Data::Dumper;
 #use Date::Dumper qw(Dumper);
@@ -36,7 +37,6 @@ my $tmp_dir = '/tmp';
 my $size_displayname = "15";									#Переменная, которая говорит нам, какой максимальной длины должна быть в тел. справочнике учетка. (displayname)
 my $date_time_file_now = '';
 my $difference_in_time = '';
-my $key_number_line_mac_2 = '';
 my $reload_yes = 0;
 #my $script_dir = Заменил на $dir;
 #my $history_dir = "заменил на dir_history";
@@ -486,15 +486,277 @@ foreach my $key_mac_model (sort keys %hash_mac_model){
 	my $brand_yealink = 'yealink';
 	my $brand_cisco = 'cisco';
 	if(exists($hash_brand_model_conf{$brand_yealink}{$hash_mac_model{$key_mac_model}})){
-#		print $key_mac_model . "\t" . $hash_mac_model{$key_mac_model} . "\n";
 #Создаем дополнительные файлы для sip-телефонов, например для Yealink требуется "mac".boot.
 		&conf_boot("$brand_yealink", "$key_mac_model", "$hash_mac_model{$key_mac_model}");
-#Создаем файл конфигурации для cisco ip phone.
+		
+#Создаем файл конфигурации для cisco ip phone.!!!!
 	}elsif(exists($hash_brand_model_conf{$brand_cisco}{$hash_mac_model{$key_mac_model}})){
 		print $key_mac_model . "\t" . $hash_mac_model{$key_mac_model} . "\n";
 	}
 }
 
+#Создаем файл конфигурации для sip-телефона.
+open (my $file_1, '>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_conf_number_line.conf") || die "Error opening file: ${date_time_file}_conf_number_line.conf $!";
+	foreach my $key_number_line_mac (sort keys %hash_number_line){
+		if ($vpn_root == 1){
+			opendir (VPN_CFG, "$dir_tftp/$key_number_line_mac/") || ((mkdir "$dir_tftp/$key_number_line_mac/", 0744) && (`cp -f $dir_tftp/template_vpn_conf/client.tar $dir_tftp/$key_number_line_mac/ && chown -R tftpd:tftpd $dir_tftp/$key_number_line_mac`));
+			closedir (VPN_CFG);
+		}
+		open (my $file_cfg, '>:encoding(utf-8)', "$tmp_dir/${date_time_file}_${key_number_line_mac}.cfg") || die "Error opening file: ${date_time_file}_${key_number_line_mac}.cfg $!";
+			print $file_cfg "#!version:1.0.0.1\n";
+			foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
+				my $namedcallgroup = '';
+				my $namedpickupgroup = '';
+				if(exists ($hash_namedgroup{$key_number_line_number})){
+					$namedcallgroup = $hash_namedgroup{$key_number_line_number}{namedcallgroup};
+					$namedpickupgroup = $hash_namedgroup{$key_number_line_number}{namedpickupgroup};
+				}
+				if ((exists ($hash_named{$key_number_line_number})) && ($hash_named{$key_number_line_number}{namedcallgroup} ne '')){
+					$namedcallgroup = $hash_named{$key_number_line_number}{namedcallgroup};
+				}
+				if ((exists ($hash_named{$key_number_line_number})) && ($hash_named{$key_number_line_number}{namedpickupgroup} ne '')){
+					$namedpickupgroup = $hash_named{$key_number_line_number}{namedpickupgroup};
+				}
+				if ($namedcallgroup ne $hash_named_db{$key_number_line_number}{namedcallgroup}){
+#					print "!!!!!!!!!!!!!$namedcallgroup $hash_named_db{$key_number_line_number}{namedcallgroup}\n";
+					&update_namedcallgroup ($key_number_line_number, $namedcallgroup, $hash_named_db{$key_number_line_number}{namedcallgroup});
+				}
+				if ($namedpickupgroup ne $hash_named_db{$key_number_line_number}{namedpickupgroup}){
+#					print "!!!!!!!!!!!!!$namedpickupgroup $hash_named_db{$key_number_line_number}{namedpickupgroup}\n";
+					&update_namedpickupgroup ($key_number_line_number, $namedpickupgroup, $hash_named_db{$key_number_line_number}{namedpickupgroup});
+				}
+				print $file_1 "$key_number_line_mac\t$key_number_line_number\t$hash_number_line{$key_number_line_mac}{$key_number_line_number}\t$namedcallgroup\t$namedpickupgroup\n";
+				open (my $file_xxx_ppp, '<:encoding(UTF-8)', "$dir_conf/XXXPPP.cfg") || die "Error opening file: XXXPPP.cfg $!";
+					while (defined(my $lime_cfg = <$file_xxx_ppp>)){
+						chomp ($lime_cfg);
+						if ($lime_cfg =~ /^(account.0.display_name = |account.0.auth_name = |account.0.user_name = )$/){
+							$lime_cfg =~ s/account.0//;
+							$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."$key_number_line_number";
+						}elsif ($lime_cfg =~ /^account.0.label = $/){
+							$lime_cfg =~ s/account.0//;
+							if ($key_number_line_number == 555){
+								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."Приёмная";
+							}elsif($key_number_line_number == 191){
+								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."357-30-97";
+							}elsif($key_number_line_number == 192){
+								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."385-79-00";
+							}else{
+								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."$key_number_line_number";
+							}
+						}elsif ($lime_cfg =~ /^account.0.password = $/){
+							$lime_cfg =~ s/account.0//;
+							$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."$hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number}";
+						}elsif ($lime_cfg =~ /^account.0./){
+							$lime_cfg =~ s/account.0//;
+							$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg";
+						}
+						print $file_cfg "$lime_cfg\n";
+					}
+				close ($file_xxx_ppp);
+			}
+			if (exists($hash_vpn_user_enable{$key_number_line_mac})){
+				print $file_cfg "network.vpn_enable = 1\n";
+				print $file_cfg "openvpn.url = ${tftp_ip}${key_number_line_mac}/client.tar\n";
+			}else{
+				print $file_cfg "network.vpn_enable = 0\n";
+#				print $file_cfg "openvpn.url = ${tftp_ip}${key_number_line_mac}/client.tar\n";
+			}
+			if (exists($hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'})){
+				print $file_cfg "network.vlan.internet_port_enable = $hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'}\n";
+				delete $hash_cfg_print{$key_number_line_mac}{'network.vlan.internet_port_enable = '.$hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'}};
+			}else{
+				print $file_cfg "network.vlan.internet_port_enable = $internet_port_enable\n";
+			}
+			if (exists($hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'})){
+				if ($hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'} == 0){
+				}else{
+					print $file_cfg "network.vlan.internet_port_vid = $hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'}\n";
+				}
+				delete $hash_cfg_print{$key_number_line_mac}{'network.vlan.internet_port_vid = '.$hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'}};
+			}else{
+				print $file_cfg "network.vlan.internet_port_vid = $internet_port_vid\n";
+			}
+			if (exists($hash_cfg_print{$key_number_line_mac})){
+				foreach my $key_print (keys %{$hash_cfg_print{$key_number_line_mac}}){
+					print $file_cfg "$key_print\n";
+				}
+			}
+		close ($file_cfg);
+		open (my $file_cfg_local, '>:encoding(utf-8)', "$tmp_dir/${date_time_file}_${key_number_line_mac}-local.cfg") || die "Error opening file: ${date_time_file}_${key_number_line_mac}-local.cfg $!";
+#####			print $file_cfg_local "#!version:1.0.0.1\n";
+			$hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'} = 1;
+			if ((defined $hash_mac_model{${key_number_line_mac}}) && (($hash_mac_model{${key_number_line_mac}} eq 'w52') || ($hash_mac_model{${key_number_line_mac}} eq 'w56') || ($hash_mac_model{${key_number_line_mac}} eq 'w60'))){
+				foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
+					my $temp_date = "handset."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}".".name";
+					if (exists($hash_local_cfg_mac{$key_number_line_mac}{$temp_date})){
+						
+					}else{
+						my $local_print = "$temp_date"." = "."$key_number_line_number";
+#####						print $file_cfg_local "$local_print\n";
+						$hash_local_cfg_mac{$key_number_line_mac}{$temp_date} = $key_number_line_number;
+						$hash_local_cfg_print{$key_number_line_mac}{$local_print} = 1;
+					}
+				}
+			}
+			my $yes_file_cfg_local = `ls -la $dir_tftp| grep ${key_number_line_mac}-local.cfg\$`;
+###			my $date_time_file_now = strftime "%Y-%m-%d %H:%M:%S", localtime(time);
+			$date_time_file_now = strftime "%Y-%m-%d %H:%M:%S", localtime(time);
+			if ($yes_file_cfg_local eq ''){
+				open(my $file_dir_log, '>>:encoding(utf-8)', "$dir_log/stat.log") || die "Error opening file: $dir_log/stat.log $!";
+					print $file_dir_log "$date_time_file_now\t${key_number_line_mac}-local.cfg\t Файла нет\n";
+				close($file_dir_log);
+				sleep 30;
+				$yes_file_cfg_local = `ls -la $dir_tftp| grep ${key_number_line_mac}-local.cfg\$`;
+			}
+			my $mtime = 0;
+			my $size_file = 0;
+			my $s = 0;
+			my $time_now = time;
+			if ($yes_file_cfg_local ne ''){
+				$mtime = (stat("$dir_tftp/${key_number_line_mac}-local.cfg"))[9];
+				$size_file = (-s "$dir_tftp/${key_number_line_mac}-local.cfg");
+				$difference_in_time = ($time_now - $mtime);
+				while($size_file < 17){
+					if($s==10){
+						open(my $file_dir_log, '>>:encoding(utf-8)', "$dir_log/stat.log") || die "Error opening file: $dir_log/stat.log $!";
+							print $file_dir_log "$date_time_file_now\t${key_number_line_mac}-local.cfg\t$difference_in_time\tРазмер файла: $size_file\n";
+						close($file_dir_log);
+						last;
+					}
+					sleep 10;
+					$s++;
+					$size_file = (-s "$dir_tftp/${key_number_line_mac}-local.cfg");
+				}
+				if($s==10){
+					next;
+				}
+				while (($difference_in_time <= 10) or (($difference_in_time >= 295) and ($difference_in_time <= 310))){
+					$date_time_file_now = strftime "%Y-%m-%d %H:%M:%S", localtime(time);
+#					open(my $file_dir_log, '>>:encoding(utf-8)', "$dir_log/stat.log") || die "Error opening file: $dir_log/stat.log $!";
+#						print $file_dir_log "$date_time_file_now\t${key_number_line_mac}-local.cfg\t$difference_in_time\n";
+#						print "$date_time_file_now\t${key_number_line_mac}-local.cfg\t$difference_in_time\n";
+#					close($file_dir_log);
+					sleep 11;
+					$mtime = (stat("$dir_tftp/${key_number_line_mac}-local.cfg"))[9];
+					$time_now = time;
+					$difference_in_time = ($time_now - $mtime);
+				}
+			}
+			if ($yes_file_cfg_local ne ''){
+				my %hash_linekey = ();
+				my $linekey_start = 0;
+				my $lang_gui = 0;
+				my $lang_wui = 0;
+				open (my $file_cfg_local_old, '<:encoding(UTF-8)', "$dir_tftp/${key_number_line_mac}-local.cfg") || die "Error opening file: ${key_number_line_mac}-local.cfg $!";
+					while (defined(my $line_cfg_local_old = <$file_cfg_local_old>)){
+						chomp ($line_cfg_local_old);
+						if ((exists($hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'})) && ($hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'} == 1)){
+							print $file_cfg_local "\#\!version:1.0.0.1\n";
+							$hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'} = 0;
+						}
+						if ((exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})) && ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} == 1)){
+							print $file_cfg_local "$line_cfg_local_old\n";
+							$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+##							print("$key_number_line_mac $line_cfg_local_old $hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old}\n");
+						}elsif ($line_cfg_local_old =~ / = /){
+							my @mas_line_cfg_local_old = split (/ = /,$line_cfg_local_old,2);
+							if (exists($hash_local_cfg_mac{$key_number_line_mac}{$mas_line_cfg_local_old[0]})){
+								if ((exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})) && ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} == 1)){
+									print $file_cfg_local "$line_cfg_local_old\n";
+									$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+								}
+							}elsif($mas_line_cfg_local_old[0] eq 'static.network.vpn_enable'){
+								if ($linekey_start == 1){
+									print "!!!!!$file_cfg_local!!!!!!\n";
+									&print_array_linekey($file_cfg_local,\%hash_linekey);
+									$linekey_start = 0;
+								}
+								next;
+							}elsif($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.enable$/){
+								print $file_cfg_local "$mas_line_cfg_local_old[0] = 0\n";
+							}elsif($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.target$/){
+								print $file_cfg_local "$mas_line_cfg_local_old[0] = \%EMPTY\%\n";
+							}elsif($mas_line_cfg_local_old[0] =~ /^linekey.\d{1,2}./){
+								$linekey_start = 1;
+								my @number_linekey = split (/\./,$mas_line_cfg_local_old[0],-1);
+								$hash_linekey{"$number_linekey[0].$number_linekey[1]"}{$number_linekey[2]} = $mas_line_cfg_local_old[1];
+#								print "$number_linekey[0].$number_linekey[1]\t$number_linekey[2] = $mas_line_cfg_local_old[1]\n";
+##								print $file_cfg_local "$line_cfg_local_old\n";
+							}else{
+								if ($linekey_start == 1){
+									&print_array_linekey($file_cfg_local,\%hash_linekey);
+									$linekey_start = 0;
+								}
+								print $file_cfg_local "$line_cfg_local_old\n";
+								$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+							}
+						}else{
+							if ($linekey_start == 1){
+								&print_array_linekey($file_cfg_local,\%hash_linekey);
+								$linekey_start = 0;
+							}
+							if (exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})){
+								if ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} != 0){
+									print $file_cfg_local "$line_cfg_local_old\n";
+									$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+								}
+							}else{
+								print $file_cfg_local "$line_cfg_local_old\n";
+								$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+							}
+						}
+					}
+					foreach my $key_date (sort keys %{$hash_local_cfg_print{$key_number_line_mac}}){
+						if ($hash_local_cfg_print{$key_number_line_mac}{$key_date} == 1){
+							print $file_cfg_local "$key_date\n";
+							$hash_local_cfg_print{$key_number_line_mac}{$key_date} = 0;
+						}
+					}
+					if ($linekey_start == 1){
+						&print_array_linekey($file_cfg_local,\%hash_linekey);
+						$linekey_start = 0;
+					}
+				close ($file_cfg_local_old);
+			}
+		close ($file_cfg_local);
+
+		my $yes_file_cfg = `ls -la $dir_tftp| grep ${key_number_line_mac}.cfg\$`;
+		if ($yes_file_cfg eq ''){
+			open (my $file_cfg_mac, '>:encoding(UTF-8)', "$dir_tftp/${key_number_line_mac}.cfg") || die "Error opening file: ${key_number_line_mac}.cfg $!";
+			close ($file_cfg_mac);
+			`chown tftpd:tftpd $dir_tftp/${key_number_line_mac}.cfg`;
+			`chmod 664 $dir_tftp/${key_number_line_mac}.cfg`;
+			print "!!!!!!!!$dir_tftp/${key_number_line_mac}.cfg\n";
+		}
+		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}.cfg");
+		$yes_file_cfg_local = `ls -la $dir_tftp| grep ${key_number_line_mac}-local.cfg\$`;
+		if ($yes_file_cfg_local eq ''){
+			open (my $file_cfg_local_mac, '>:encoding(UTF-8)', "$dir_tftp/${key_number_line_mac}-local.cfg") || die "Error opening file: ${key_number_line_mac}-local.cfg $!";
+			close ($file_cfg_local_mac);
+			open (my $file_cfg_local, '>:encoding(utf-8)', "$tmp_dir/${date_time_file}_${key_number_line_mac}-local.cfg") || die "Error opening file: ${date_time_file}_${key_number_line_mac}-local.cfg $!";
+				if ((exists($hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'})) && ($hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'} == 1)){
+					print $file_cfg_local "\#\!version:1.0.0.1\n";
+					$hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'} = 0;
+				}
+				foreach my $key_date (sort keys %{$hash_local_cfg_print{$key_number_line_mac}}){
+					if ($hash_local_cfg_print{$key_number_line_mac}{$key_date} == 1){
+						print $file_cfg_local "$key_date\n";
+						$hash_local_cfg_print{$key_number_line_mac}{$key_date} = 0;
+					}
+				}
+			close ($file_cfg_local);
+			`chown tftpd:tftpd $dir_tftp/${key_number_line_mac}-local.cfg`;
+			`chmod 664 $dir_tftp/${key_number_line_mac}-local.cfg`;
+			print "Был создан файл: $dir_tftp/${key_number_line_mac}-local.cfg\n";
+		}
+		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}-local.cfg");
+	}
+close ($file_1);
+
+#Фиксируем изменения. (был добавлен или удален номер телефона или устройство в AD)
+&diff_file("$dir_conf", "$tmp_dir", 'ad_sip-phone.txt');
+#Фиксируем изменения. (был добавлен или удален номер телефона)
+&diff_file("$dir_conf", "$tmp_dir", 'conf_number_line.conf');
 
 #отвечает за перезагрузку диалплата Asterisk и его модулей. Эта команда соответствует нажатию кнопки "Apply Changes" через GUI FreePBX.
 ##if ($reload_yes == 1){
@@ -503,6 +765,56 @@ foreach my $key_mac_model (sort keys %hash_mac_model){
 
 
 #----------------------------------------------------
+#linekey.1.line = 1
+#linekey.1.value = %EMPTY%
+#linekey.1.type = 15
+#linekey.1.label = %EMPTY%
+#linekey.1.extension = %EMPTY%
+#linekey.1.xml_phonebook = 0
+#linekey.1.pickup_value = %EMPTY%
+
+sub print_array_linekey{
+	my $file_cfg_local = shift;
+	my ($hash_linekey) = @_;
+	foreach my $key_line_linekey (sort keys %$hash_linekey){
+		if ((exists($$hash_linekey{$key_line_linekey}{value})) && (exists($hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}})) && ($$hash_linekey{$key_line_linekey}{label} ne $hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}})){
+##			print "!!$$hash_linekey{$key_line_linekey}{value}\t$hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}}!!\n";
+			print "Замена $$hash_linekey{$key_line_linekey}{label} на $hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}}\n"; 
+			$$hash_linekey{$key_line_linekey}{label} = $hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}};
+		}
+		my $i = 7;
+		my @label_value = ();
+		foreach my $linekey_type (sort keys %{$$hash_linekey{$key_line_linekey}}){
+##			print "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}\n";
+			if ($linekey_type eq 'extension'){
+				$label_value[0] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}elsif($linekey_type eq 'label'){
+				$label_value[1] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}elsif($linekey_type eq 'line'){
+				$label_value[2] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}elsif($linekey_type eq 'pickup_value'){
+				$label_value[3] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}elsif($linekey_type eq 'type'){
+				$label_value[4] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}elsif($linekey_type eq 'value'){
+				$label_value[5] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}elsif($linekey_type eq 'xml_phonebook'){
+				$label_value[6] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+			}else{
+				$label_value[$i] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
+#				print $file_cfg_local "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}\n";
+				$i++;
+			}
+		}
+		foreach my $line_new (@label_value){
+			if (defined $line_new){
+				print $file_cfg_local "$line_new\n";
+			}
+		}
+	}
+	%$hash_linekey = ();
+}
+
 #Функция создания файла .boot для телефонов Yealink
 sub conf_boot{
 	my $brand = shift;
@@ -662,8 +974,11 @@ sub diff_file{
 	
 	my $diff_file = `diff -u $dir_file/$original_file $tmp_dir_file/${date_time_file}_${original_file}`;
 	if ($diff_file ne ''){
+		my $mtime = (stat("$dir_file/$original_file"))[9];
+		my $time_now = time;
+		my $difference_in_time = ($time_now - $mtime);
 		open(my $file_dir_lo, '>>:encoding(utf-8)', "$dir_log/stat.log") || die "Error opening file: $dir_log/stat.log $!";
-			print $file_dir_lo "$date_time_file_now\t${key_number_line_mac_2}-local.cfg\t$difference_in_time !!!\n";
+			print $file_dir_lo "$date_time_file_now\t$original_file\t$difference_in_time\n";
 		close($file_dir_lo);
 		$reload_yes = 1;
 		`diff -u $dir_file/${original_file} $tmp_dir_file/${date_time_file}_${original_file} > $dir_history/$date_directory/${date_time_file}_${original_file}.diff`;
