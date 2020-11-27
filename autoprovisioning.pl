@@ -403,7 +403,7 @@ open (my $file, '>>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_ad_sip-phone.t
 #					print "Тест на скрытый номер: $$ref[2]\t $$ref[3]\n";
 				}
 			}else{
-				$hash_mac_model{"\L$$ref[2]"} = "$$ref[3]";
+				$hash_mac_model{"\L$$ref[2]"} = lc("$$ref[3]");
 			}
 			$hash_mac_phone_pass{"\L$$ref[2]"}{"$$ref[0]"} = "$$ref[1]";
 			$hash_named_db{"$$ref[0]"}{namedcallgroup} = "$$ref[4]";
@@ -463,52 +463,48 @@ foreach my $key_mac_address (sort keys %hash_mac_phone_pass){
 }
 
 #Создаем файл конфигурации для sip-телефона.
+my $brand_yealink = 'yealink';
+my $brand_cisco = 'cisco';
 
-foreach my $key_mac_model (sort keys %hash_mac_model){
-	my $brand_yealink = 'yealink';
-	my $brand_cisco = 'cisco';
-	if(exists($hash_brand_model_conf{$brand_yealink}{$hash_mac_model{$key_mac_model}})){
-#Создаем дополнительные файлы для sip-телефонов, например для Yealink требуется "mac".boot.
-		&conf_boot("$brand_yealink", "$key_mac_model", "$hash_mac_model{$key_mac_model}");
-		
-#Создаем файл конфигурации для cisco ip phone.!!!!
-	}elsif(exists($hash_brand_model_conf{$brand_cisco}{$hash_mac_model{$key_mac_model}})){
-		print $key_mac_model . "\t" . $hash_mac_model{$key_mac_model} . "\n";
-	}
-}
-
-#Создаем файл конфигурации для sip-телефона.
 open (my $file_1, '>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_conf_number_line.conf") || die "Error opening file: ${date_time_file}_conf_number_line.conf $!";
-	foreach my $key_number_line_mac (sort keys %hash_number_line){
+foreach my $key_number_line_mac (sort keys %hash_number_line){
+#Формируем новый файл conf_number_line.conf
+	foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
+		my $namedcallgroup = '';
+		my $namedpickupgroup = '';
+		if(exists ($hash_namedgroup{$key_number_line_number})){
+			$namedcallgroup = $hash_namedgroup{$key_number_line_number}{namedcallgroup};
+			$namedpickupgroup = $hash_namedgroup{$key_number_line_number}{namedpickupgroup};
+		}
+		if ((exists ($hash_named{$key_number_line_number})) && ($hash_named{$key_number_line_number}{namedcallgroup} ne '')){
+			$namedcallgroup = $hash_named{$key_number_line_number}{namedcallgroup};
+		}
+		if ((exists ($hash_named{$key_number_line_number})) && ($hash_named{$key_number_line_number}{namedpickupgroup} ne '')){
+			$namedpickupgroup = $hash_named{$key_number_line_number}{namedpickupgroup};
+		}
+		if ($namedcallgroup ne $hash_named_db{$key_number_line_number}{namedcallgroup}){
+#			print "!!!!!!!!!!!!!$namedcallgroup $hash_named_db{$key_number_line_number}{namedcallgroup}\n";
+			&update_namedcallgroup ($key_number_line_number, $namedcallgroup, $hash_named_db{$key_number_line_number}{namedcallgroup});
+		}
+		if ($namedpickupgroup ne $hash_named_db{$key_number_line_number}{namedpickupgroup}){
+#			print "!!!!!!!!!!!!!$namedpickupgroup $hash_named_db{$key_number_line_number}{namedpickupgroup}\n";
+			&update_namedpickupgroup ($key_number_line_number, $namedpickupgroup, $hash_named_db{$key_number_line_number}{namedpickupgroup});
+		}
+		print $file_1 "$key_number_line_mac\t$key_number_line_number\t$hash_number_line{$key_number_line_mac}{$key_number_line_number}\t$namedcallgroup\t$namedpickupgroup\n";
+	}
+#Формируем файлы конфигурации для Yealink
+	if(exists($hash_brand_model_conf{"$brand_yealink"}{$hash_mac_model{$key_number_line_mac}})){
 		if ($vpn_root == 1){
 			opendir (VPN_CFG, "$dir_tftp/$key_number_line_mac/") || ((mkdir "$dir_tftp/$key_number_line_mac/", 0744) && (`cp -f $dir_tftp/template_vpn_conf/client.tar $dir_tftp/$key_number_line_mac/ && chown -R tftpd:tftpd $dir_tftp/$key_number_line_mac`));
 			closedir (VPN_CFG);
 		}
+#Создаем файл конфигурации для Yealink "mac".boot
+		&conf_boot('yealink', "$key_number_line_mac", "$hash_mac_model{$key_number_line_mac}");
+#Создаем файл конфигурации для Yealink "mac".cfg
 		open (my $file_cfg, '>:encoding(utf-8)', "$tmp_dir/${date_time_file}_${key_number_line_mac}.cfg") || die "Error opening file: ${date_time_file}_${key_number_line_mac}.cfg $!";
 			print $file_cfg "#!version:1.0.0.1\n";
 			my $number_line = 0;
 			foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
-				my $namedcallgroup = '';
-				my $namedpickupgroup = '';
-				if(exists ($hash_namedgroup{$key_number_line_number})){
-					$namedcallgroup = $hash_namedgroup{$key_number_line_number}{namedcallgroup};
-					$namedpickupgroup = $hash_namedgroup{$key_number_line_number}{namedpickupgroup};
-				}
-				if ((exists ($hash_named{$key_number_line_number})) && ($hash_named{$key_number_line_number}{namedcallgroup} ne '')){
-					$namedcallgroup = $hash_named{$key_number_line_number}{namedcallgroup};
-				}
-				if ((exists ($hash_named{$key_number_line_number})) && ($hash_named{$key_number_line_number}{namedpickupgroup} ne '')){
-					$namedpickupgroup = $hash_named{$key_number_line_number}{namedpickupgroup};
-				}
-				if ($namedcallgroup ne $hash_named_db{$key_number_line_number}{namedcallgroup}){
-#					print "!!!!!!!!!!!!!$namedcallgroup $hash_named_db{$key_number_line_number}{namedcallgroup}\n";
-					&update_namedcallgroup ($key_number_line_number, $namedcallgroup, $hash_named_db{$key_number_line_number}{namedcallgroup});
-				}
-				if ($namedpickupgroup ne $hash_named_db{$key_number_line_number}{namedpickupgroup}){
-#					print "!!!!!!!!!!!!!$namedpickupgroup $hash_named_db{$key_number_line_number}{namedpickupgroup}\n";
-					&update_namedpickupgroup ($key_number_line_number, $namedpickupgroup, $hash_named_db{$key_number_line_number}{namedpickupgroup});
-				}
-				print $file_1 "$key_number_line_mac\t$key_number_line_number\t$hash_number_line{$key_number_line_mac}{$key_number_line_number}\t$namedcallgroup\t$namedpickupgroup\n";
 				open (my $file_xxx_ppp, '<:encoding(UTF-8)', "$dir_conf/XXXPPP.cfg") || die "Error opening file: XXXPPP.cfg $!";
 					while (defined(my $line_cfg = <$file_xxx_ppp>)){
 						if ($line_cfg =~ /^(\#|\;)/){
@@ -742,7 +738,10 @@ open (my $file_1, '>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_conf_number_l
 			print "Был создан файл: $dir_tftp/${key_number_line_mac}-local.cfg\n";
 		}
 		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}-local.cfg");
+	}elsif(exists($hash_brand_model_conf{"$brand_cisco"}{$hash_mac_model{$key_number_line_mac}})){
+		print"$hash_mac_model{$key_number_line_mac}\n";
 	}
+}
 close ($file_1);
 
 #Фиксируем изменения. (был добавлен или удален номер телефона или устройство в AD)
