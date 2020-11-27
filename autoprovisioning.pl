@@ -46,7 +46,6 @@ my %hash_named = ();										#Номера групп из файла conf_numb
 my %hash_local_cfg_mac = ();									#{MAC-адрес}{handset.1.name} = {Приёмная}
 my %hash_local_cfg_print = ();									#{MAC-адрес}{Статическая строка файла конфигурации например handset.1.name = Приёмная}=1 , для файла "mac"local.cfg
 my %hash_cfg_mac = ();										#{MAC-адрес}{network.vlan.internet_port_enable} = {0}
-my %hash_cfg_print = ();									#{MAC-адрес}{network.vlan.internet_port_enable = 0} = 1 #Хэш содержит mac адреса с индивидуальными настройками в файле "mac".cfg
 my %hash_named_db = ();										#номера групп из BD FreePBX
 my %hash_namedgroup = ();									#номера групп из файла namedgroup.conf, содержит шаблоны по автозаполнению групп!
 my %hash_vpn_user_enable = ();									#мак адрес у которого вклюючен VPN
@@ -57,7 +56,7 @@ my %hash_mac_model = ();									#Хэш mac-адресов с версией м
 my %hash_mac_phone_pass = ();									#Хэш содержит mac-адреса sip-телефонов с номерами телефонов и паролями от sip-учеток этих номеров.
 my %hash_displayname = ();									#Хэш который содержит в себе displayname из файла freepbx.pass, которые необходимо заменить для справочника.
 my %hash_dir_files = ();									#Хэш содержит список файлов конфигураций для всех sip-телефонов из каталога TFTP-server (для удаления sip-учетки на sip-телефонах, которые удалили из AD)
-
+my %hash_template_yealink = ();									#Хэш содержит конфигурацию шаблона из файла XXXPPP.cfg {"mac yealinka"}{"номер строки"}{"Знпачение до равно"} = "Значение после ="
 
 open (my $file_conf_number_line, '<:encoding(UTF-8)', "$dir_conf/conf_number_line.conf") || die "Error opening file: conf_number_line.conf $!";
 	while (defined(my $line_number_line = <$file_conf_number_line>)){
@@ -150,15 +149,6 @@ open (my $freepbx_pass, '<:encoding(UTF-8)', "$dir_conf/freepbx.pass") || die "E
                                                         while($array_number_cfg_start_end[0] != ($array_number_cfg_start_end[1]+1)){
                                                                 foreach my $key_mac (sort keys %hash_number_line){
                                                                         if (exists($hash_number_line{$key_mac}{$array_number_cfg_start_end[0]})){
-##                                                                              print("$array_number_cfg_start_end[0]\t$key_mac\t$array_number_cfg[1]\n");
-                                                                                if (exists($hash_cfg_mac{$key_mac}{$array_number_cfg_mac[0]})){
-##                                                                                      print("$array_number_cfg[1]\n");
-                                                                                }else{
-                                                                            		if(($array_number_cfg_mac[0] ne 'network.vlan.internet_port_enable') && ($array_number_cfg_mac[0] ne 'network.vlan.internet_port_vid')){
-                                                                                		$hash_cfg_print{$key_mac}{$array_number_cfg[1]} = 1;
-                                                                                    		print($array_number_cfg[1]);
-                                                                                    	}
-                                                                                }
                                                                                 $hash_cfg_mac{$key_mac}{$array_number_cfg_mac[0]} = $array_number_cfg_mac[1];
                                                                                 next;
                                                                         }
@@ -169,14 +159,6 @@ open (my $freepbx_pass, '<:encoding(UTF-8)', "$dir_conf/freepbx.pass") || die "E
                                         }else{
                                                 foreach my $key_mac (sort keys %hash_number_line){
                                                         if (exists($hash_number_line{$key_mac}{$array_number_cfg[0]})){
-##                                                              print("$array_number_cfg[0]\t$key_mac\t$array_number_cfg[1]\t$array_number_cfg_mac[1]\n");
-                                                                if (exists($hash_cfg_mac{$key_mac}{$array_number_cfg_mac[0]})){
-                                                                }else{
-                                                            		if(($array_number_cfg_mac[0] ne 'network.vlan.internet_port_enable') && ($array_number_cfg_mac[0] ne 'network.vlan.internet_port_vid')){
-                                                                    		$hash_cfg_print{$key_mac}{$array_number_cfg[1]} = 1;
-                                                                    		print($array_number_cfg[1]);
-                                                                    	}
-                                                                }
                                                                 $hash_cfg_mac{$key_mac}{$array_number_cfg_mac[0]} = $array_number_cfg_mac[1];
                                                                 last;
                                                         }
@@ -504,6 +486,7 @@ open (my $file_1, '>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_conf_number_l
 		}
 		open (my $file_cfg, '>:encoding(utf-8)', "$tmp_dir/${date_time_file}_${key_number_line_mac}.cfg") || die "Error opening file: ${date_time_file}_${key_number_line_mac}.cfg $!";
 			print $file_cfg "#!version:1.0.0.1\n";
+			my $number_line = 0;
 			foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
 				my $namedcallgroup = '';
 				my $namedpickupgroup = '';
@@ -527,58 +510,67 @@ open (my $file_1, '>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_conf_number_l
 				}
 				print $file_1 "$key_number_line_mac\t$key_number_line_number\t$hash_number_line{$key_number_line_mac}{$key_number_line_number}\t$namedcallgroup\t$namedpickupgroup\n";
 				open (my $file_xxx_ppp, '<:encoding(UTF-8)', "$dir_conf/XXXPPP.cfg") || die "Error opening file: XXXPPP.cfg $!";
-					while (defined(my $lime_cfg = <$file_xxx_ppp>)){
-						chomp ($lime_cfg);
-						if ($lime_cfg =~ /^(account.0.display_name = |account.0.auth_name = |account.0.user_name = )$/){
-							$lime_cfg =~ s/account.0//;
-							$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."$key_number_line_number";
-						}elsif ($lime_cfg =~ /^account.0.label = $/){
-							$lime_cfg =~ s/account.0//;
-							if ($key_number_line_number == 555){
-								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."Приёмная";
-							}elsif($key_number_line_number == 191){
-								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."357-30-97";
-							}elsif($key_number_line_number == 192){
-								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."385-79-00";
-							}else{
-								$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."$key_number_line_number";
-							}
-						}elsif ($lime_cfg =~ /^account.0.password = $/){
-							$lime_cfg =~ s/account.0//;
-							$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg"."$hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number}";
-						}elsif ($lime_cfg =~ /^account.0./){
-							$lime_cfg =~ s/account.0//;
-							$lime_cfg = "account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$lime_cfg";
+					while (defined(my $line_cfg = <$file_xxx_ppp>)){
+						if ($line_cfg =~ /^(\#|\;)/){
+							next;
 						}
-						print $file_cfg "$lime_cfg\n";
+						chomp ($line_cfg);
+						if ($line_cfg =~ /^(account.0.label = |account.0.display_name = |account.0.auth_name = |account.0.user_name = )$/){
+							$line_cfg =~ s/account.0//;
+							my @mas_line_cfg_template = split(/ = /,$line_cfg,-1);
+							$hash_template_yealink{$key_number_line_mac}{$number_line}{"account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$mas_line_cfg_template[0]"} = $key_number_line_number;
+						}elsif ($line_cfg =~ /^account.0.password = $/){
+							$line_cfg =~ s/account.0//;
+							my @mas_line_cfg_template = split(/ = /,$line_cfg,-1);
+							$hash_template_yealink{$key_number_line_mac}{$number_line}{"account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$mas_line_cfg_template[0]"} = $hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number};
+						}elsif ($line_cfg =~ /^account.0./){
+							$line_cfg =~ s/account.0//;
+							my @mas_line_cfg_template = split(/ = /,$line_cfg,-1);
+							$hash_template_yealink{$key_number_line_mac}{$number_line}{"account."."$hash_number_line{$key_number_line_mac}{$key_number_line_number}"."$mas_line_cfg_template[0]"} = $mas_line_cfg_template[1];
+						}elsif($line_cfg =~ /^(|$)/){
+							$hash_template_yealink{$key_number_line_mac}{$number_line}{'probel'} = 1;
+						}else{
+							my @mas_line_cfg_template = split(/ = /,$line_cfg,-1);
+							$hash_template_yealink{$key_number_line_mac}{$number_line}{$mas_line_cfg_template[0]} = $mas_line_cfg_template[1];
+						}
+						$number_line++;
 					}
 				close ($file_xxx_ppp);
 			}
 			if (exists($hash_vpn_user_enable{$key_number_line_mac})){
-				print $file_cfg "network.vpn_enable = 1\n";
-				print $file_cfg "openvpn.url = ${tftp_ip}${key_number_line_mac}/client.tar\n";
+				$hash_template_yealink{$key_number_line_mac}{$number_line}{'network.vpn_enable'} = 1;
+				$number_line++;
+				$hash_template_yealink{$key_number_line_mac}{$number_line}{'openvpn.url'} = "${tftp_ip}${key_number_line_mac}/client.tar";
 			}else{
-				print $file_cfg "network.vpn_enable = 0\n";
-#				print $file_cfg "openvpn.url = ${tftp_ip}${key_number_line_mac}/client.tar\n";
+				$hash_template_yealink{$key_number_line_mac}{$number_line}{'network.vpn_enable'} = 0;
 			}
+			$number_line++;
 			if (exists($hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'})){
-				print $file_cfg "network.vlan.internet_port_enable = $hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'}\n";
-				delete $hash_cfg_print{$key_number_line_mac}{'network.vlan.internet_port_enable = '.$hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'}};
+				$hash_template_yealink{$key_number_line_mac}{$number_line}{'network.vlan.internet_port_enable'} = $hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_enable'};
 			}else{
-				print $file_cfg "network.vlan.internet_port_enable = $internet_port_enable\n";
+				$hash_template_yealink{$key_number_line_mac}{$number_line}{'network.vlan.internet_port_enable'} = $internet_port_enable;
 			}
+			$number_line++;
 			if (exists($hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'})){
 				if ($hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'} == 0){
 				}else{
-					print $file_cfg "network.vlan.internet_port_vid = $hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'}\n";
+					$hash_template_yealink{$key_number_line_mac}{$number_line}{'network.vlan.internet_port_vid'} = $hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'};
 				}
-				delete $hash_cfg_print{$key_number_line_mac}{'network.vlan.internet_port_vid = '.$hash_cfg_mac{$key_number_line_mac}{'network.vlan.internet_port_vid'}};
 			}else{
-				print $file_cfg "network.vlan.internet_port_vid = $internet_port_vid\n";
+				$hash_template_yealink{$key_number_line_mac}{$number_line}{'network.vlan.internet_port_vid'} = $internet_port_vid;
 			}
-			if (exists($hash_cfg_print{$key_number_line_mac})){
-				foreach my $key_print (keys %{$hash_cfg_print{$key_number_line_mac}}){
-					print $file_cfg "$key_print\n";
+			$number_line++;
+			foreach my $key_numline (sort { $a <=> $b}  keys %{$hash_template_yealink{$key_number_line_mac}}){
+				foreach my $key_line (sort keys %{$hash_template_yealink{$key_number_line_mac}{$key_numline}}){
+					if (exists($hash_cfg_mac{$hash_template_yealink{$key_number_line_mac}{$key_numline}})){
+						print $file_cfg "$key_line".' = '."$hash_cfg_mac{$key_number_line_mac}{$key_line}\n";
+					}else{
+						if($key_line eq 'probel'){
+							print $file_cfg "\n";
+						}else{
+							print $file_cfg "$key_line".' = '."$hash_template_yealink{$key_number_line_mac}{$key_numline}{$key_line}\n";
+						}
+					}
 				}
 			}
 		close ($file_cfg);
@@ -679,7 +671,7 @@ open (my $file_1, '>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_conf_number_l
 							}elsif($mas_line_cfg_local_old[0] =~ /^linekey.\d{1,2}./){
 								$linekey_start = 1;
 								my @number_linekey = split (/\./,$mas_line_cfg_local_old[0],-1);
-								$hash_linekey{"$number_linekey[0].$number_linekey[1]"}{$number_linekey[2]} = $mas_line_cfg_local_old[1];
+								$hash_linekey{"${number_linekey[0]}.${number_linekey[1]}"}{${number_linekey[2]}} = $mas_line_cfg_local_old[1];
 #								print "$number_linekey[0].$number_linekey[1]\t$number_linekey[2] = $mas_line_cfg_local_old[1]\n";
 ##								print $file_cfg_local "$line_cfg_local_old\n";
 							}else{
