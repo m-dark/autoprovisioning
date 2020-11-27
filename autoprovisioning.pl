@@ -739,33 +739,52 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		}
 		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}-local.cfg");
 	}elsif(exists($hash_brand_model_conf{"$brand_cisco"}{$hash_mac_model{$key_number_line_mac}})){
+		my $mac_name_file_cisco = uc($key_number_line_mac);
 	
-		$hash_brand_model_conf{$brand}{$hash_mac_model{$key_number_line_mac}}{'name_cfg'} = "${$hash_mac_model{$key_number_line_mac}}.cfg";
-		open (my $name_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $dir_devices/$brand/$line_file_brand_model/$hash_mac_model{$key_number_line_mac}.cfg $!";
+#		$hash_brand_model_conf{$brand}{$hash_mac_model{$key_number_line_mac}}{'name_cfg'} = "${$hash_mac_model{$key_number_line_mac}}.cfg";
+#		open (my $name_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $dir_devices/$brand/$line_file_brand_model/$hash_mac_model{$key_number_line_mac}.cfg $!";
 	
-		print"$hash_mac_model{$key_number_line_mac}\n";
 		# !!!Cisco телефоны до перезагрузки не скачивают файл конфигурации. Рассмотреть вариант создания функции, которая будет по ssh ребутать cisco ip phone.
 		my $simple = XML::Simple->new(ForceArray => 1, KeepRoot => 1);
 		$XML::Simple::PREFERRED_PARSER = "XML::Parser";
-		my $data   = $simple->XMLin("$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/SEPmac.cnf.xml");
+		my $data = $simple->XMLin("$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/SEPmac.cnf.xml");
 #		print Dumper($data) . "\n";
-
-		open(my $file_model_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg" $!";
+		open (my $file_model_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $hash_mac_model{$key_number_line_mac}.cfg $!";
+			my %types = ();
 			while (defined(my $line_cfg = <$file_model_cfg>)){
 				if ($line_cfg =~ /^(\#|\;|$)/){
 					next;
 				}
+				chomp($line_cfg);
 				my @mas_line_cfg = split (/ = /,$line_cfg,2);
 				my @mas_line_cfg_name = split (/\;/,$mas_line_cfg[0],-1);
-				my $string = '{device}}[0]->{';
-				foreach my $name_xml_tag (@mas_line_cfg_name){
-					$string = "$string".'->{'."$name_xml_tag".'}[0]'
+				my $length_array = @mas_line_cfg_name;
+				if($length_array == 1){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 2){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 3){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 4){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 5){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 6){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 7){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 8){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 9){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] -> {$mas_line_cfg_name[8]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 10){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] -> {$mas_line_cfg_name[8]}[0] -> {$mas_line_cfg_name[9]}[0] = "$mas_line_cfg[1]";
+				}else{
+					print "Error_10 @mas_line_cfg_name\n";
 				}
-				$string = "$string".' = '.$mas_line_cfg[1];
-				@{$data->$string;
 			}
-		close($file_model_cfg);
-		
+		close ($file_model_cfg);
+
 #!#		@{$data->{device}}[0]->{sipProfile}[0]->{phoneLabel}[0] = 'No Name';
 		
 #!#		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
@@ -782,19 +801,19 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		$simple->XMLout($data, 
 				KeepRoot   => 1, 
 #				NoSort     => 1, 
-				OutputFile => "$tmp_dir/${date_time_file}".'_SEP'."${key_number_line_mac}".'cnf.xml',
+				OutputFile => "$tmp_dir/${date_time_file}".'_SEP'."${mac_name_file_cisco}".'.cnf.xml',
 				XMLDecl    => '<?xml version="1.0" encoding="UTF-8"?>',
 				);
 		
-		my $yes_file_cfg = `ls -la $dir_tftp| grep SEP${key_number_line_mac}.cnf.xml\$`;
+		my $yes_file_cfg = `ls -la $dir_tftp| grep SEP${mac_name_file_cisco}.cnf.xml\$`;
 		if ($yes_file_cfg eq ''){
-			open (my $file_cfg_mac, '>:encoding(UTF-8)', "$dir_tftp/".'SEP'."${key_number_line_mac}".'cnf.xml') || die "Error opening file: "$dir_tftp/".'SEP'."${key_number_line_mac}".'cnf.xml' $!";
+			open (my $file_cfg_mac, '>:encoding(UTF-8)', "$dir_tftp/SEP${mac_name_file_cisco}.cnf.xml") || die "Error opening file: $dir_tftp/${mac_name_file_cisco}.cnf.xml $!";
 			close ($file_cfg_mac);
-			`chown tftpd:tftpd $dir_tftp/SEP${key_number_line_mac}.cnf.xml`;
-			`chmod 664 $dir_tftp/SEP${key_number_line_mac}.cnf.xml`;
-			print "!!!!!!!!$dir_tftp/SEP${key_number_line_mac}.cnf.xml\n";
+			`chown tftpd:tftpd $dir_tftp/SEP${mac_name_file_cisco}.cnf.xml`;
+			`chmod 664 $dir_tftp/SEP${mac_name_file_cisco}.cnf.xml`;
+			print "!!!!!!!!$dir_tftp/SEP${mac_name_file_cisco}.cnf.xml\n";
 		}
-		&diff_file("$dir_tftp", "$tmp_dir", "SEP${key_number_line_mac}.cnf.xml");
+		&diff_file("$dir_tftp", "$tmp_dir", "SEP${mac_name_file_cisco}.cnf.xml");
 	}
 }
 close ($file_1);
