@@ -739,7 +739,62 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		}
 		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}-local.cfg");
 	}elsif(exists($hash_brand_model_conf{"$brand_cisco"}{$hash_mac_model{$key_number_line_mac}})){
+	
+		$hash_brand_model_conf{$brand}{$hash_mac_model{$key_number_line_mac}}{'name_cfg'} = "${$hash_mac_model{$key_number_line_mac}}.cfg";
+		open (my $name_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $dir_devices/$brand/$line_file_brand_model/$hash_mac_model{$key_number_line_mac}.cfg $!";
+	
 		print"$hash_mac_model{$key_number_line_mac}\n";
+		# !!!Cisco телефоны до перезагрузки не скачивают файл конфигурации. Рассмотреть вариант создания функции, которая будет по ssh ребутать cisco ip phone.
+		my $simple = XML::Simple->new(ForceArray => 1, KeepRoot => 1);
+		$XML::Simple::PREFERRED_PARSER = "XML::Parser";
+		my $data   = $simple->XMLin("$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/SEPmac.cnf.xml");
+#		print Dumper($data) . "\n";
+
+		open(my $file_model_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg" $!";
+			while (defined(my $line_cfg = <$file_model_cfg>)){
+				if ($line_cfg =~ /^(\#|\;|$)/){
+					next;
+				}
+				my @mas_line_cfg = split (/ = /,$line_cfg,2);
+				my @mas_line_cfg_name = split (/\;/,$mas_line_cfg[0],-1);
+				my $string = '{device}}[0]->{';
+				foreach my $name_xml_tag (@mas_line_cfg_name){
+					$string = "$string".'->{'."$name_xml_tag".'}[0]'
+				}
+				$string = "$string".' = '.$mas_line_cfg[1];
+				@{$data->$string;
+			}
+		close($file_model_cfg);
+		
+#!#		@{$data->{device}}[0]->{sipProfile}[0]->{phoneLabel}[0] = 'No Name';
+		
+#!#		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
+#!#		my $size = @array;
+#!#		for(my $i = 0;$i <= $size; $i++){
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = '00000';
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = '0.0.0.0';
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{name}[0] = '00000';
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{displayName}[0] = '00000';
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{contact}[0] = '00000';
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authName}[0] = '00000';
+#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authPassword}[0] = '00000';
+#!#		}
+		$simple->XMLout($data, 
+				KeepRoot   => 1, 
+#				NoSort     => 1, 
+				OutputFile => "$tmp_dir/${date_time_file}".'_SEP'."${key_number_line_mac}".'cnf.xml',
+				XMLDecl    => '<?xml version="1.0" encoding="UTF-8"?>',
+				);
+		
+		my $yes_file_cfg = `ls -la $dir_tftp| grep SEP${key_number_line_mac}.cnf.xml\$`;
+		if ($yes_file_cfg eq ''){
+			open (my $file_cfg_mac, '>:encoding(UTF-8)', "$dir_tftp/".'SEP'."${key_number_line_mac}".'cnf.xml') || die "Error opening file: "$dir_tftp/".'SEP'."${key_number_line_mac}".'cnf.xml' $!";
+			close ($file_cfg_mac);
+			`chown tftpd:tftpd $dir_tftp/SEP${key_number_line_mac}.cnf.xml`;
+			`chmod 664 $dir_tftp/SEP${key_number_line_mac}.cnf.xml`;
+			print "!!!!!!!!$dir_tftp/SEP${key_number_line_mac}.cnf.xml\n";
+		}
+		&diff_file("$dir_tftp", "$tmp_dir", "SEP${key_number_line_mac}.cnf.xml");
 	}
 }
 close ($file_1);
