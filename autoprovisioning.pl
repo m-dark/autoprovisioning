@@ -752,14 +752,16 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}-local.cfg");
 	}elsif(exists($hash_brand_model_conf{"$brand_cisco"}{$hash_mac_model{$key_number_line_mac}})){
 		my $mac_name_file_cisco = uc($key_number_line_mac);
-#		$hash_brand_model_conf{$brand}{$hash_mac_model{$key_number_line_mac}}{'name_cfg'} = "${$hash_mac_model{$key_number_line_mac}}.cfg";
-#		open (my $name_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $dir_devices/$brand/$line_file_brand_model/$hash_mac_model{$key_number_line_mac}.cfg $!";
 	
 		# !!!Cisco телефоны до перезагрузки не скачивают файл конфигурации. Рассмотреть вариант создания функции, которая будет по ssh ребутать cisco ip phone.
 		my $simple = XML::Simple->new(ForceArray => 1, KeepRoot => 1);
 		$XML::Simple::PREFERRED_PARSER = "XML::Parser";
 		my $data = $simple->XMLin("$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/SEPmac.cnf.xml");
 #		print Dumper($data) . "\n";
+		my $pr = $data->{device};
+		foreach my $key (sort keys $pr){
+			print "$pr\n";
+		}
 		open (my $file_model_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $hash_mac_model{$key_number_line_mac}.cfg $!";
 			my %types = ();
 			while (defined(my $line_cfg = <$file_model_cfg>)){
@@ -795,21 +797,18 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				}
 			}
 		close ($file_model_cfg);
+#		featureLabel>Speed Dial
 		foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
-#!#		@{$data->{device}}[0]->{sipProfile}[0]->{phoneLabel}[0] = 'No Name';
-		
-#!#		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
-#!#		my $size = @array;
-#!#		for(my $i = 0;$i <= $size; $i++){
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{featureLabel}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{proxy}[0] = '10.0.16.69';
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{port}[0] = '5060';
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{name}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{displayName}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{contact}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{authName}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{authPassword}[0] = "$hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number}";
-#!#		}
+			my $i = $hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1;
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button='."$i"};
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = '10.0.16.69';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{port}[0] = '5060';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{name}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{displayName}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{contact}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authName}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authPassword}[0] = "$hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number}";
 		}
 		$simple->XMLout($data, 
 				KeepRoot   => 1, 
@@ -1027,6 +1026,7 @@ sub number_zero{
 		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
 		my $size = @array;
 		for(my $i = 0;$i <= $size; $i++){
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button='."$i"};
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = '00000';
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = '0.0.0.0';
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{name}[0] = '00000';
