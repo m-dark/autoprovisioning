@@ -229,7 +229,7 @@ foreach my $file_old (@dir_files){
 	$file_old =~ s/.cnf.xml//;
 	$file_old =~ s/SEP//;
 #к верхнему uc()
-#	$file_old = lc($file_old);
+	$file_old = lc($file_old);
 	$hash_dir_files{'cisco'}{$file_old} = 1;
 }
 
@@ -367,23 +367,34 @@ $sth->execute; # исполняем запрос
 
 #open ($file, '>>:encoding(UTF-8)', "$dir_conf/ad_sip-phone.txt") || die "Error opening file: ad_sip-phone.txt $!";
 open (my $file, '>>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_ad_sip-phone.txt") || die "Error opening file: ${date_time_file}_ad_sip-phone.txt $!";
-	while (my $ref = $sth->fetchrow_arrayref) {
+	while (my $ref = $sth->fetchrow_arrayref){
+		my $mac_adr = $$ref[2];
+		if (defined $$ref[2]){
+			$mac_adr =~ s/\://;
+			$mac_adr =~ s/ //;
+			$mac_adr =~ s/\.//;
+			$mac_adr =~ s/-//;
+			if(length($mac_adr) != 12){
+				print "Error 112: В mac-адресе: $mac_adr номера: $$ref[0] не 12 символов!\n";
+			}
+		}
+
 		if((defined ($$ref[3])) && ($$ref[3] =~ /\./)){
 			my @array_ref_3 = split (/\./,$$ref[3],-1);
 			$$ref[3] = $array_ref_3[0];
 			shift(@array_ref_3);
 			foreach my $vpn_or_vlan (@array_ref_3){
 				if (($vpn_or_vlan eq 'vpn') || ($vpn_or_vlan eq 'VPN')){
-					$hash_vpn_user_enable{"\L$$ref[2]"} = 1;
+					$hash_vpn_user_enable{"\L$mac_adr"} = 1;
 				}elsif (($vpn_or_vlan =~ /^vlan=/) || ($vpn_or_vlan =~ /^Vlan=/) || ($vpn_or_vlan =~ /^VLAN=/)){
 					my @vlan_number = split (/=/,$vpn_or_vlan,2);
 					if ($vlan_number[1] == 0){
-						$hash_cfg_mac{"\L$$ref[2]"}{'network.vlan.internet_port_enable'} = 0;
-						$hash_cfg_mac{"\L$$ref[2]"}{'network.vlan.internet_port_vid'} = 1;
+						$hash_cfg_mac{"\L$mac_adr"}{'network.vlan.internet_port_enable'} = 0;
+						$hash_cfg_mac{"\L$mac_adr"}{'network.vlan.internet_port_vid'} = 1;
 
 					}else{
-						$hash_cfg_mac{"\L$$ref[2]"}{'network.vlan.internet_port_enable'} = 1;
-						$hash_cfg_mac{"\L$$ref[2]"}{'network.vlan.internet_port_vid'} = $vlan_number[1];
+						$hash_cfg_mac{"\L$mac_adr"}{'network.vlan.internet_port_enable'} = 1;
+						$hash_cfg_mac{"\L$mac_adr"}{'network.vlan.internet_port_vid'} = $vlan_number[1];
 					}
 				}else{
 					print "Error 111: VPN or VLAN\n";
@@ -395,17 +406,17 @@ open (my $file, '>>:encoding(UTF-8)', "$tmp_dir/${date_time_file}_ad_sip-phone.t
 			if($$ref[2] =~ /[а-яА-Я]/){
 				print "Error_7, В mac-адресе $$ref[2] присутствует русская буква!\n";
 			}
-			if (exists($hash_mac_model{"\L$$ref[2]"})){
-				if (($hash_mac_model{"\L$$ref[2]"} ne "$$ref[3]") && ("$$ref[3]" ne '')){
-					print "ERROR_2: За mac-адресом \L$$ref[2] уже прописана модель $hash_mac_model{\"\L$$ref[2]\"}, а вы пытаетесь прописать за ним новую модель $$ref[3]\n";
+			if (exists($hash_mac_model{"\L$mac_adr"})){
+				if (($hash_mac_model{"\L$mac_adr"} ne "$$ref[3]") && ("$$ref[3]" ne '')){
+					print "ERROR_2: За mac-адресом \L$mac_adr уже прописана модель $hash_mac_model{\"\L$mac_adr\"}, а вы пытаетесь прописать за ним новую модель $$ref[3]\n";
 					next;
 				}else{
 #					print "Тест на скрытый номер: $$ref[2]\t $$ref[3]\n";
 				}
 			}else{
-				$hash_mac_model{"\L$$ref[2]"} = lc("$$ref[3]");
+				$hash_mac_model{"\L$mac_adr"} = lc("$$ref[3]");
 			}
-			$hash_mac_phone_pass{"\L$$ref[2]"}{"$$ref[0]"} = "$$ref[1]";
+			$hash_mac_phone_pass{"\L$mac_adr"}{"$$ref[0]"} = "$$ref[1]";
 			$hash_named_db{"$$ref[0]"}{namedcallgroup} = "$$ref[4]";
 			$hash_named_db{"$$ref[0]"}{namedpickupgroup} = "$$ref[5]";
 #			print $file "$$ref[0]\t$$ref[1]\t\L$$ref[2]\t$$ref[3]\t$$ref[4]\t$$ref[5]\n";
@@ -433,6 +444,7 @@ foreach my $key_brand (sort keys %hash_dir_files){
 			if($key_brand eq 'yealink'){
 				$key_dir_files = "${key_dir_files}.cfg"
 			}elsif($key_brand eq 'cisco'){
+				$key_dir_files = uc($key_dir_files);
 				$key_dir_files = "SEP${key_dir_files}.cnf.xml"
 			}
 			&number_zero($key_brand, $key_dir_files);
@@ -740,7 +752,6 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		&diff_file("$dir_tftp", "$tmp_dir", "${key_number_line_mac}-local.cfg");
 	}elsif(exists($hash_brand_model_conf{"$brand_cisco"}{$hash_mac_model{$key_number_line_mac}})){
 		my $mac_name_file_cisco = uc($key_number_line_mac);
-	
 #		$hash_brand_model_conf{$brand}{$hash_mac_model{$key_number_line_mac}}{'name_cfg'} = "${$hash_mac_model{$key_number_line_mac}}.cfg";
 #		open (my $name_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $dir_devices/$brand/$line_file_brand_model/$hash_mac_model{$key_number_line_mac}.cfg $!";
 	
@@ -784,20 +795,22 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				}
 			}
 		close ($file_model_cfg);
-
+		foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
 #!#		@{$data->{device}}[0]->{sipProfile}[0]->{phoneLabel}[0] = 'No Name';
 		
 #!#		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
 #!#		my $size = @array;
 #!#		for(my $i = 0;$i <= $size; $i++){
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = '00000';
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = '0.0.0.0';
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{name}[0] = '00000';
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{displayName}[0] = '00000';
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{contact}[0] = '00000';
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authName}[0] = '00000';
-#!#			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authPassword}[0] = '00000';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{featureLabel}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{proxy}[0] = '10.0.16.69';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{port}[0] = '5060';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{name}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{displayName}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{contact}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{authName}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[($hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1)]->{authPassword}[0] = "$hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number}";
 #!#		}
+		}
 		$simple->XMLout($data, 
 				KeepRoot   => 1, 
 #				NoSort     => 1, 
