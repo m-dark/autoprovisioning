@@ -29,6 +29,10 @@ my $pass = '';				#пароль /etc/freepbx.conf
 my $db = '';				#"asterisk"; # имя базы данных.
 my $vpn_root = '';			#0|1 (0 - no vpn, 1 - yes vpn)
 my $tftp_ip = '';			#'tftp://X.X.X.X/';
+my $sip_server_1_address = '192.168.0.2';#IP-адрес основного sip-сервера для файлов конфигурации
+my $sip_server_1_port = '5060';		#Port основного sip-сервера для файлов конфигурации
+my $sip_server_2_address = '192.168.0.3';#IP-адрес резервного sip-сервера для файлов конфигурации
+my $sip_server_2_port = '5060';		#Port резервного sip-сервера для файлов конфигурации
 my $internet_port_enable = "0";		#VLan Enable
 my $internet_port_vid = "1";		#Number VLan
 my $date_directory = strftime "%Y%m", localtime(time);						#Название каталога с историей изменений. (ГГГГММ)
@@ -98,6 +102,14 @@ open (my $freepbx_pass, '<:encoding(UTF-8)', "$dir_conf/freepbx.pass") || die "E
                                 $vpn_root = $array_freepbx_pass[1];
                         }when('tftp_ip'){
                                 $tftp_ip = $array_freepbx_pass[1];
+                        }when('sip_server_1_address'){
+                                $sip_server_1_address = $array_freepbx_pass[1];
+                        }when('sip_server_1_port'){
+                                $sip_server_1_port = $array_freepbx_pass[1];
+                        }when('sip_server_2_address'){
+                                $sip_server_2_address = $array_freepbx_pass[1];
+                        }when('sip_server_2_port'){
+                                $sip_server_2_port = $array_freepbx_pass[1];
                         }when('local_cfg'){
                                 my @array_local_cfg = split(/\;/,$array_freepbx_pass[1],-1);
                                 foreach my $numper_local_cfg (@array_local_cfg){
@@ -758,12 +770,7 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		$XML::Simple::PREFERRED_PARSER = "XML::Parser";
 		my $data = $simple->XMLin("$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/SEPmac.cnf.xml");
 #		print Dumper($data) . "\n";
-		my $pr = $data->{device};
-		foreach my $key (sort keys $pr){
-			print "$pr\n";
-		}
 		open (my $file_model_cfg, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $hash_mac_model{$key_number_line_mac}.cfg $!";
-			my %types = ();
 			while (defined(my $line_cfg = <$file_model_cfg>)){
 				if ($line_cfg =~ /^(\#|\;|$)/){
 					next;
@@ -783,9 +790,19 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				}elsif($length_array == 5){
 					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] = "$mas_line_cfg[1]";
 				}elsif($length_array == 6){
-					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] = "$mas_line_cfg[1]";
+					if(($mas_line_cfg_name[5] eq 'name') && ($mas_line_cfg[1] !~ /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)){
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] = "$sip_server_1_address";
+					}elsif(($mas_line_cfg_name[5] eq 'processNodeName') && ($mas_line_cfg[1] !~ /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)){
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] = "$sip_server_1_address";
+					}else{
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] = "$mas_line_cfg[1]";
+					}
 				}elsif($length_array == 7){
-					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] = "$mas_line_cfg[1]";
+					if(($mas_line_cfg_name[6] eq 'sipPort') && ($mas_line_cfg[1] !~ /^(\d{4,6})$/)){
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] = "$sip_server_1_port";
+					}else{
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] = "$mas_line_cfg[1]";
+					}
 				}elsif($length_array == 8){
 					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] = "$mas_line_cfg[1]";
 				}elsif($length_array == 9){
@@ -799,17 +816,49 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 		close ($file_model_cfg);
 #		featureLabel>Speed Dial
 		foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
-			my $i = $hash_number_line{$key_number_line_mac}{$key_number_line_number} - 1;
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button='."$i"};
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = '10.0.16.69';
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{port}[0] = '5060';
+			my $y = $hash_number_line{$key_number_line_mac}{$key_number_line_number};
+			my $i = $y - 1;
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button'} = "$y";
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{name}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{displayName}[0] = "$key_number_line_number";
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{contact}[0] = "$key_number_line_number";
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authName}[0] = "$key_number_line_number";
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{authPassword}[0] = "$hash_mac_phone_pass{$key_number_line_mac}{$key_number_line_number}";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{autoAnswer}[0]->{autoAnswerEnabled}[0] = '2';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{callWaiting}[0] = '3';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{contact}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{displayName}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureID}[0] = '9';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = "$key_number_line_number";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{forwardCallInfoDisplay}[0]->{callerName}[0] = 'true';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{forwardCallInfoDisplay}[0]->{callerNumber}[0] = 'true'; # почитать
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{forwardCallInfoDisplay}[0]->{dialedNumber}[0] = 'true';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{forwardCallInfoDisplay}[0]->{redirectedNumber}[0] = 'false'; #почитать
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{messageWaitingLampPolicy}[0] = '1';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{messagesNumber}[0] = '*97';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{port}[0] = "$sip_server_1_port";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = "$sip_server_1_address";
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{ringSettingActive}[0] = '5';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{ringSettingIdle}[0] = '4';
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{sharedLine}[0] = 'false';
 		}
+		my $yes_mac_name_file_phone = `ls -la $dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}| grep SEP${mac_name_file_cisco}.cnf.xml\$`;
+		if($yes_mac_name_file_phone ne ''){
+			print "SEP${mac_name_file_cisco}.cnf.xml\n";
+			open (my $file_cfg_phone, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $hash_mac_model{$key_number_line_mac}.cfg $!";
+			while (defined(my $line_cfg = <$file_cfg_phone>)){
+				if ($line_cfg =~ /^(\#|\;|$)/){
+					next;
+				}
+				chomp($line_cfg);
+				my @mas_line_cfg = split (/ = /,$line_cfg,2);
+				my @mas_line_cfg_name = split (/\;/,$mas_line_cfg[0],-1);
+				my $length_array = @mas_line_cfg_name;
+				if($length_array == 1){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] = "$mas_line_cfg[1]";
+				}
+			}
+			close($file_cfg_phone);
+		}
+#		print Dumper($data) . "\n";
 		$simple->XMLout($data, 
 				KeepRoot   => 1, 
 #				NoSort     => 1, 
@@ -1022,11 +1071,15 @@ sub number_zero{
 		@{$data->{device}}[0]->{proxyServerURL}[0] = '';
 		@{$data->{device}}[0]->{servicesURL}[0] = '';
 		@{$data->{device}}[0]->{sipProfile}[0]->{phoneLabel}[0] = 'No Name';
-		
-		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
-		my $size = @array;
-		for(my $i = 0;$i <= $size; $i++){
-			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button='."$i"};
+
+#Не работает определение размера массива по ссылке, надо что-то придумать другое
+#Необходимо как-то перебрать хэш раздела line и понять сколько там элементов в массиве
+#		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
+		my $size = 1;
+		print '!!!!!!!!!!!!!!!!!!'."$size\n";
+		for(my $i = 0;$i < $size; $i++){
+			my $y = $i+1;
+			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button'} = $y;
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = '00000';
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{proxy}[0] = '0.0.0.0';
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{name}[0] = '00000';
