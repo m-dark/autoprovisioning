@@ -1104,12 +1104,20 @@ sub number_zero{
 		@{$data->{device}}[0]->{servicesURL}[0] = '';
 		@{$data->{device}}[0]->{sipProfile}[0]->{phoneLabel}[0] = 'No Name';
 
-#Не работает определение размера массива по ссылке, надо что-то придумать другое
-#Необходимо как-то перебрать хэш раздела line и понять сколько там элементов в массиве
-#		my @array = @{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line};
-		my $size = 1;
-		print '!!!!!!!!!!!!!!!!!!'."$size\n";
-		for(my $i = 0;$i < $size; $i++){
+		my $count = 0;
+		my $line = 0;
+		my $line_all = 0;
+		while ($count < 100){
+			$line = $data->{device}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$count]->{'button'};
+			if (defined ($line)){
+				$line_all = $line;
+			}else{
+				last;
+			}
+			$count++;
+		}
+#		my $size = 1;
+		for(my $i = 0;$i < $line_all; $i++){
 			my $y = $i+1;
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{'button'} = $y;
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{featureLabel}[0] = '00000';
