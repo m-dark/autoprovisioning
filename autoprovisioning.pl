@@ -840,10 +840,9 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{ringSettingIdle}[0] = '4';
 			@{$data->{device}}[0]->{sipProfile}[0]->{sipLines}[0]->{line}[$i]->{sharedLine}[0] = 'false';
 		}
-		my $yes_mac_name_file_phone = `ls -la $dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}| grep SEP${mac_name_file_cisco}.cnf.xml\$`;
+		my $yes_mac_name_file_phone = `ls -la $dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}| grep SEP${mac_name_file_cisco}.cfg\$`;
 		if($yes_mac_name_file_phone ne ''){
-			print "SEP${mac_name_file_cisco}.cnf.xml\n";
-			open (my $file_cfg_phone, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/$hash_mac_model{$key_number_line_mac}.cfg") || die "Error opening file: $hash_mac_model{$key_number_line_mac}.cfg $!";
+			open (my $file_cfg_phone, '<:encoding(UTF-8)', "$dir_devices/$brand_cisco/$hash_mac_model{$key_number_line_mac}/SEP${mac_name_file_cisco}.cfg") || die "Error opening file: SEP${mac_name_file_cisco}.cfg $!";
 			while (defined(my $line_cfg = <$file_cfg_phone>)){
 				if ($line_cfg =~ /^(\#|\;|$)/){
 					next;
@@ -852,8 +851,41 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				my @mas_line_cfg = split (/ = /,$line_cfg,2);
 				my @mas_line_cfg_name = split (/\;/,$mas_line_cfg[0],-1);
 				my $length_array = @mas_line_cfg_name;
+				my $j = 0;
+				my @array_perem_i = ();
 				if($length_array == 1){
 					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 2){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 3){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 4){
+					if ($mas_line_cfg_name[2] =~ /(\[\d\]$)/ ){
+						@array_perem_i = split(/\[/,$mas_line_cfg_name[2],2);
+						$array_perem_i[1] =~ s/\]//;
+						$j = $array_perem_i[1] - 1;
+						if($mas_line_cfg_name[3] eq 'button'){
+							@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$array_perem_i[0]}[$j] -> {$mas_line_cfg_name[3]} = "$mas_line_cfg[1]";
+						}else{
+							@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$array_perem_i[0]}[$j] -> {$mas_line_cfg_name[3]}[0] = "$mas_line_cfg[1]";
+						}
+					}else{
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] = "$mas_line_cfg[1]";
+					}
+				}elsif($length_array == 5){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 6){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 7){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 8){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 9){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] -> {$mas_line_cfg_name[8]}[0] = "$mas_line_cfg[1]";
+				}elsif($length_array == 10){
+					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] -> {$mas_line_cfg_name[4]}[0] -> {$mas_line_cfg_name[5]}[0] -> {$mas_line_cfg_name[6]}[0] -> {$mas_line_cfg_name[7]}[0] -> {$mas_line_cfg_name[8]}[0] -> {$mas_line_cfg_name[9]}[0] = "$mas_line_cfg[1]";
+				}else{
+					print "Error_10 @mas_line_cfg_name\n";
 				}
 			}
 			close($file_cfg_phone);
