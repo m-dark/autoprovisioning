@@ -44,6 +44,7 @@ my $difference_in_time = '';
 my $reload_yes = 0;
 my $fwd_enable = 1;
 my $rename_linekey = 1;
+my $rename_memorykey = 1;
 #my $script_dir = Заменил на $dir;
 #my $history_dir = "заменил на dir_history";
 
@@ -106,6 +107,8 @@ open (my $freepbx_pass, '<:encoding(UTF-8)', "$dir_conf/freepbx.pass") || die "E
                                 $fwd_enable = $array_freepbx_pass[1];
                         }when('rename_linekey'){
                                 $rename_linekey = $array_freepbx_pass[1];
+                        }when('rename_memorykey'){
+                                $rename_memorykey = $array_freepbx_pass[1];
                         }when('tftp_ip'){
                                 $tftp_ip = $array_freepbx_pass[1];
                         }when('sip_server_1_address'){
@@ -662,10 +665,13 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 			}
 			if ($yes_file_cfg_local ne ''){
 				my %hash_linekey = ();
+				my %hash_memorykey = ();
 				my $linekey_start = 0;
+				my $memorykey_start = 0;
 				my $lang_gui = 0;
 				my $lang_wui = 0;
 				my $number_line = 1;
+				my $number_memory = 1;
 				open (my $file_cfg_local_old, '<:encoding(UTF-8)', "$dir_tftp/${key_number_line_mac}-local.cfg") || die "Error opening file: ${key_number_line_mac}-local.cfg $!";
 					while (defined(my $line_cfg_local_old = <$file_cfg_local_old>)){
 						chomp ($line_cfg_local_old);
@@ -691,6 +697,10 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 									print "!!!!!$file_cfg_local!!!!!!\n";
 									&print_array_linekey($file_cfg_local,\%hash_linekey);
 									$linekey_start = 0;
+								}elsif ($memorykey_start == 1){
+									print "!!!!!$file_cfg_local!!!!!!\n";
+									&print_array_memorykey($file_cfg_local,\%hash_memorykey);
+									$memorykey_start = 0;
 								}
 								next;
 							}elsif(($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.enable$/) && ($fwd_enable == 0)){
@@ -702,12 +712,18 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 								my @number_linekey = split (/\./,$mas_line_cfg_local_old[0],-1);
 								$hash_linekey{$number_line}{"${number_linekey[0]}.${number_linekey[1]}"}{${number_linekey[2]}} = $mas_line_cfg_local_old[1];
 								$number_line++;
-#								print "$number_linekey[0].$number_linekey[1]\t$number_linekey[2] = $mas_line_cfg_local_old[1]\n";
-##								print $file_cfg_local "$line_cfg_local_old\n";
+							}elsif(($mas_line_cfg_local_old[0] =~ /^memorykey.\d{1,2}./) && ($rename_memorykey == 1)){
+								$memorykey_start = 1;
+								my @number_memorykey = split (/\./,$mas_line_cfg_local_old[0],-1);
+								$hash_memorykey{$number_memory}{"${number_memorykey[0]}.${number_memorykey[1]}"}{${number_memorykey[2]}} = $mas_line_cfg_local_old[1];
+								$number_memory++;
 							}else{
 								if ($linekey_start == 1){
 									&print_array_linekey($file_cfg_local,\%hash_linekey);
 									$linekey_start = 0;
+								}elsif ($memorykey_start == 1){
+									&print_array_memorykey($file_cfg_local,\%hash_memorykey);
+									$memorykey_start = 0;
 								}
 								print $file_cfg_local "$line_cfg_local_old\n";
 								$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
@@ -738,6 +754,9 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 					if ($linekey_start == 1){
 						&print_array_linekey($file_cfg_local,\%hash_linekey);
 						$linekey_start = 0;
+					}elsif ($memorykey_start == 1){
+						&print_array_memorykey($file_cfg_local,\%hash_memorykey);
+						$memorykey_start = 0;
 					}
 				close ($file_cfg_local_old);
 			}
@@ -970,6 +989,31 @@ sub print_array_linekey{
 		}
 	}
 	%$hash_linekey = ();
+}
+
+sub print_array_memorykey{
+	my $file_cfg_local = shift;
+	my ($hash_memorykey) = @_;
+	foreach my $key_numline (sort {$a <=> $b} keys %$hash_memorykey){
+		foreach my $key_line_memorykey (sort keys %{$$hash_memorykey{$key_numline}}){
+			if ((exists($$hash_memorykey{$key_numline}{$key_line_memorykey}{value})) && (exists($hash_sipid_displayname{$$hash_memorykey{$key_numline}{$key_line_memorykey}{value}}))){
+				foreach my $key_numline_1 (sort {$a <=> $b} keys %$hash_memorykey){
+					if ((exists($$hash_memorykey{$key_numline_1}{$key_line_memorykey}{pickup_value})) && ($$hash_memorykey{$key_numline_1}{$key_line_memorykey}{pickup_value} ne $hash_sipid_displayname{$$hash_memorykey{$key_numline}{$key_line_memorykey}{value}})){
+						print "Замена $$hash_memorykey{$key_numline_1}{$key_line_memorykey}{pickup_value} на $hash_sipid_displayname{$$hash_memorykey{$key_numline}{$key_line_memorykey}{value}}\n"; 
+						$$hash_memorykey{$key_numline_1}{$key_line_memorykey}{pickup_value} = $hash_sipid_displayname{$$hash_memorykey{$key_numline}{$key_line_memorykey}{value}};
+					}
+				}
+			}
+		}
+	}
+	foreach my $key_numline2 (sort {$a <=> $b} keys %$hash_memorykey){
+		foreach my $key_line_memorykey2 (sort keys %{$$hash_memorykey{$key_numline2}}){
+			foreach my $memorykey_type (sort keys %{$$hash_memorykey{$key_numline2}{$key_line_memorykey2}}){
+				print $file_cfg_local "$key_line_memorykey2.$memorykey_type = $$hash_memorykey{$key_numline2}{$key_line_memorykey2}{$memorykey_type}\n";
+			}
+		}
+	}
+	%$hash_memorykey = ();
 }
 
 #Функция создания файла .boot для телефонов Yealink
