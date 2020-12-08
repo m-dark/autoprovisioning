@@ -42,6 +42,8 @@ my $size_displayname = "15";									#Переменная, которая го�
 my $date_time_file_now = '';
 my $difference_in_time = '';
 my $reload_yes = 0;
+my $fwd_enable = 1;
+my $rename_linekey = 1;
 #my $script_dir = Заменил на $dir;
 #my $history_dir = "заменил на dir_history";
 
@@ -100,6 +102,10 @@ open (my $freepbx_pass, '<:encoding(UTF-8)', "$dir_conf/freepbx.pass") || die "E
                                 $db = $array_freepbx_pass[1];
                         }when('vpn_root'){
                                 $vpn_root = $array_freepbx_pass[1];
+                        }when('fwd_enable'){
+                                $fwd_enable = $array_freepbx_pass[1];
+                        }when('rename_linekey'){
+                                $rename_linekey = $array_freepbx_pass[1];
                         }when('tftp_ip'){
                                 $tftp_ip = $array_freepbx_pass[1];
                         }when('sip_server_1_address'){
@@ -659,6 +665,7 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				my $linekey_start = 0;
 				my $lang_gui = 0;
 				my $lang_wui = 0;
+				my $number_line = 1;
 				open (my $file_cfg_local_old, '<:encoding(UTF-8)', "$dir_tftp/${key_number_line_mac}-local.cfg") || die "Error opening file: ${key_number_line_mac}-local.cfg $!";
 					while (defined(my $line_cfg_local_old = <$file_cfg_local_old>)){
 						chomp ($line_cfg_local_old);
@@ -666,7 +673,9 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 							print $file_cfg_local "\#\!version:1.0.0.1\n";
 							$hash_local_cfg_print{$key_number_line_mac}{'#!version:1.0.0.1'} = 0;
 						}
-						if ((exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})) && ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} == 1)){
+						if($line_cfg_local_old =~ /^$/){
+							print $file_cfg_local "$line_cfg_local_old\n";
+						}elsif ((exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})) && ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} == 1)){
 							print $file_cfg_local "$line_cfg_local_old\n";
 							$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
 ##							print("$key_number_line_mac $line_cfg_local_old $hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old}\n");
@@ -684,14 +693,15 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 									$linekey_start = 0;
 								}
 								next;
-							}elsif($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.enable$/){
+							}elsif(($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.enable$/) && ($fwd_enable == 0)){
 								print $file_cfg_local "$mas_line_cfg_local_old[0] = 0\n";
-							}elsif($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.target$/){
+							}elsif(($mas_line_cfg_local_old[0] =~ /^account.\d{1,2}.always_fwd.target$/) && ($fwd_enable == 0)){
 								print $file_cfg_local "$mas_line_cfg_local_old[0] = \%EMPTY\%\n";
-							}elsif($mas_line_cfg_local_old[0] =~ /^linekey.\d{1,2}./){
+							}elsif(($mas_line_cfg_local_old[0] =~ /^linekey.\d{1,2}./) && ($rename_linekey == 1)){
 								$linekey_start = 1;
 								my @number_linekey = split (/\./,$mas_line_cfg_local_old[0],-1);
-								$hash_linekey{"${number_linekey[0]}.${number_linekey[1]}"}{${number_linekey[2]}} = $mas_line_cfg_local_old[1];
+								$hash_linekey{$number_line}{"${number_linekey[0]}.${number_linekey[1]}"}{${number_linekey[2]}} = $mas_line_cfg_local_old[1];
+								$number_line++;
 #								print "$number_linekey[0].$number_linekey[1]\t$number_linekey[2] = $mas_line_cfg_local_old[1]\n";
 ##								print $file_cfg_local "$line_cfg_local_old\n";
 							}else{
@@ -702,20 +712,21 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 								print $file_cfg_local "$line_cfg_local_old\n";
 								$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
 							}
-						}else{
-							if ($linekey_start == 1){
-								&print_array_linekey($file_cfg_local,\%hash_linekey);
-								$linekey_start = 0;
-							}
-							if (exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})){
-								if ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} != 0){
-									print $file_cfg_local "$line_cfg_local_old\n";
-									$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
-								}
-							}else{
-								print $file_cfg_local "$line_cfg_local_old\n";
-								$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
-							}
+## Протестировать на ВМП если не влияет, то можно удалить.
+##						}else{
+##							if ($linekey_start == 1){
+##								&print_array_linekey($file_cfg_local,\%hash_linekey);
+##								$linekey_start = 0;
+##							}
+##							if (exists($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old})){
+##								if ($hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} != 0){
+##									print $file_cfg_local "$line_cfg_local_old\n";
+##									$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+##								}
+##							}else{
+##								print $file_cfg_local "$line_cfg_local_old\n";
+##								$hash_local_cfg_print{$key_number_line_mac}{$line_cfg_local_old} = 0;
+##							}
 						}
 					}
 					foreach my $key_date (sort keys %{$hash_local_cfg_print{$key_number_line_mac}}){
@@ -784,7 +795,13 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				}elsif($length_array == 2){
 					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] = "$mas_line_cfg[1]";
 				}elsif($length_array == 3){
-					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] = "$mas_line_cfg[1]";
+					if(($mas_line_cfg_name[2] eq 'backupProxy') && ($mas_line_cfg[1] !~ /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)){
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] = "$sip_server_2_address";
+					}elsif(($mas_line_cfg_name[2] eq 'backupProxyPort') && ($mas_line_cfg[1] !~ /^(\d{4,6})$/)){
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] = "$sip_server_2_port";
+					}else{
+						@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] = "$mas_line_cfg[1]";
+					}
 				}elsif($length_array == 4){
 					@{$data->{device}}[0] -> {$mas_line_cfg_name[0]}[0] -> {$mas_line_cfg_name[1]}[0] -> {$mas_line_cfg_name[2]}[0] -> {$mas_line_cfg_name[3]}[0] = "$mas_line_cfg[1]";
 				}elsif($length_array == 5){
@@ -814,7 +831,6 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 				}
 			}
 		close ($file_model_cfg);
-#		featureLabel>Speed Dial
 		foreach my $key_number_line_number(sort { $hash_number_line{$key_number_line_mac}{$a} <=> $hash_number_line{$key_number_line_mac}{$b} } keys %{$hash_number_line{$key_number_line_mac}}){
 			my $y = $hash_number_line{$key_number_line_mac}{$key_number_line_number};
 			my $i = $y - 1;
@@ -934,39 +950,22 @@ close ($file_1);
 sub print_array_linekey{
 	my $file_cfg_local = shift;
 	my ($hash_linekey) = @_;
-	foreach my $key_line_linekey (sort keys %$hash_linekey){
-		if ((exists($$hash_linekey{$key_line_linekey}{value})) && (exists($hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}})) && ($$hash_linekey{$key_line_linekey}{label} ne $hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}})){
-##			print "!!$$hash_linekey{$key_line_linekey}{value}\t$hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}}!!\n";
-			print "Замена $$hash_linekey{$key_line_linekey}{label} на $hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}}\n"; 
-			$$hash_linekey{$key_line_linekey}{label} = $hash_sipid_displayname{$$hash_linekey{$key_line_linekey}{value}};
-		}
-		my $i = 7;
-		my @label_value = ();
-		foreach my $linekey_type (sort keys %{$$hash_linekey{$key_line_linekey}}){
-##			print "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}\n";
-			if ($linekey_type eq 'extension'){
-				$label_value[0] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}elsif($linekey_type eq 'label'){
-				$label_value[1] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}elsif($linekey_type eq 'line'){
-				$label_value[2] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}elsif($linekey_type eq 'pickup_value'){
-				$label_value[3] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}elsif($linekey_type eq 'type'){
-				$label_value[4] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}elsif($linekey_type eq 'value'){
-				$label_value[5] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}elsif($linekey_type eq 'xml_phonebook'){
-				$label_value[6] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-			}else{
-				$label_value[$i] = "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}";
-#				print $file_cfg_local "$key_line_linekey.$linekey_type = $$hash_linekey{$key_line_linekey}{$linekey_type}\n";
-				$i++;
+	foreach my $key_numline (sort {$a <=> $b} keys %$hash_linekey){
+		foreach my $key_line_linekey (sort keys %{$$hash_linekey{$key_numline}}){
+			if ((exists($$hash_linekey{$key_numline}{$key_line_linekey}{value})) && (exists($hash_sipid_displayname{$$hash_linekey{$key_numline}{$key_line_linekey}{value}}))){
+				foreach my $key_numline_1 (sort {$a <=> $b} keys %$hash_linekey){
+					if ((exists($$hash_linekey{$key_numline_1}{$key_line_linekey}{label})) && ($$hash_linekey{$key_numline_1}{$key_line_linekey}{label} ne $hash_sipid_displayname{$$hash_linekey{$key_numline}{$key_line_linekey}{value}})){
+						print "Замена $$hash_linekey{$key_numline_1}{$key_line_linekey}{label} на $hash_sipid_displayname{$$hash_linekey{$key_numline}{$key_line_linekey}{value}}\n"; 
+						$$hash_linekey{$key_numline_1}{$key_line_linekey}{label} = $hash_sipid_displayname{$$hash_linekey{$key_numline}{$key_line_linekey}{value}};
+					}
+				}
 			}
 		}
-		foreach my $line_new (@label_value){
-			if (defined $line_new){
-				print $file_cfg_local "$line_new\n";
+	}
+	foreach my $key_numline2 (sort {$a <=> $b} keys %$hash_linekey){
+		foreach my $key_line_linekey2 (sort keys %{$$hash_linekey{$key_numline2}}){
+			foreach my $linekey_type (sort keys %{$$hash_linekey{$key_numline2}{$key_line_linekey2}}){
+				print $file_cfg_local "$key_line_linekey2.$linekey_type = $$hash_linekey{$key_numline2}{$key_line_linekey2}{$linekey_type}\n";
 			}
 		}
 	}
