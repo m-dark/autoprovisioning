@@ -721,7 +721,8 @@ foreach my $key_number_line_mac (sort keys %hash_number_line){
 								if ($memorykey_start == 1){
 									&print_array_memorykey($file_cfg_local,\%hash_memorykey);
 									$memorykey_start = 0;
-								}elsif ($linekey_start == 1){
+								}
+								if ($linekey_start == 1){
 									&print_array_linekey($file_cfg_local,\%hash_linekey);
 									$linekey_start = 0;
 								}
